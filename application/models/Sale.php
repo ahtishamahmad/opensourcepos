@@ -17,6 +17,7 @@ class Sale extends CI_Model
 				SELECT payments.sale_id AS sale_id,
 					SUM(CASE WHEN payments.cash_adjustment = 0 THEN payments.payment_amount ELSE 0 END) AS sale_payment_amount,
 					SUM(CASE WHEN payments.cash_adjustment = 1 THEN payments.payment_amount ELSE 0 END) AS sale_cash_adjustment,
+					SUM(payments.cash_refund) AS sale_cash_refund,
 					GROUP_CONCAT(CONCAT(payments.payment_type, " ", (payments.payment_amount - payments.cash_refund)) SEPARATOR ", ") AS payment_type
 				FROM ' . $this->db->dbprefix('sales_payments') . ' AS payments
 				INNER JOIN ' . $this->db->dbprefix('sales') . ' AS sales
@@ -76,6 +77,8 @@ class Sale extends CI_Model
 				MAX(customer_p.last_name) AS last_name,
 				MAX(customer_p.email) AS email,
 				MAX(customer_p.comments) AS comments,
+				MAX(IFNULL(payments.sale_cash_adjustment, 0)) AS cash_adjustment,
+				MAX(IFNULL(payments.sale_cash_refund, 0)) AS cash_refund,
 				' . "
 				$sale_total AS amount_due,
 				MAX(IFNULL(payments.sale_payment_amount, 0)) AS amount_tendered,
@@ -595,7 +598,6 @@ class Sale extends CI_Model
 
 			$success &= $this->db->trans_status();
 		}
-
 		return $success;
 	}
 

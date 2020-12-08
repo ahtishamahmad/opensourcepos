@@ -1163,8 +1163,8 @@ class Sales extends Secure_Controller
 		$data['selected_employee_id'] = $sale_info['employee_id'];
 		$data['selected_employee_name'] = $this->xss_clean($employee_info->first_name . ' ' . $employee_info->last_name);
 		$data['sale_info'] = $sale_info;
-		$balance_due = $sale_info['amount_due'] - $sale_info['amount_tendered'];
-		if($balance_due < 0)
+		$balance_due = round($sale_info['amount_due'] - $sale_info['amount_tendered'] - $sale_info['cash_adjustment'] + $sale_info['cash_refund'], totals_decimals(), PHP_ROUND_HALF_UP);
+		if(!$this->sale_lib->reset_cash_rounding() && $balance_due < 0)
 		{
 			$balance_due = 0;
 		}
@@ -1297,11 +1297,16 @@ class Sales extends Secure_Controller
 				}
 			}
 
-			// To maintain tradition we will also delete any payments with 0 amount
-			// assuming these are mistakes introduced at sale time.
-			// This is now done in models/Sale.php
+			if($payment_type == $this->lang->line('sales_cash_adjustment'))
+			{
+				$cash_adjustment = 1;
+			}
+			else
+			{
+				$cash_adjustment = 0;
+			}
 
-			$payments[] = array('payment_id' => $payment_id, 'payment_type' => $payment_type, 'payment_amount' => $payment_amount, 'cash_refund' => $cash_refund, 'employee_id' => $employee_id);
+			$payments[] = array('payment_id' => $payment_id, 'payment_type' => $payment_type, 'payment_amount' => $payment_amount, 'cash_refund' => $cash_refund, 'cash_adjustment' => $cash_adjustment,  'employee_id' => $employee_id);
 		}
 
 		$payment_id = -1;
@@ -1310,7 +1315,16 @@ class Sales extends Secure_Controller
 
 		if($payment_type != PAYMENT_TYPE_UNASSIGNED && $payment_amount <> 0)
 		{
-			$payments[] = array('payment_id' => $payment_id, 'payment_type' => $payment_type, 'payment_amount' => $payment_amount, 'cash_refund' => 0.00, 'employee_id' => $employee_id);
+			if($payment_type == $this->lang->line('sales_cash_adjustment'))
+			{
+				$cash_adjustment = 1;
+			}
+			else
+			{
+				$cash_adjustment = 0;
+			}
+
+			$payments[] = array('payment_id' => $payment_id, 'payment_type' => $payment_type, 'payment_amount' => $payment_amount, 'cash_refund' => 0.00, 'cash_adjustment' => $cash_adjustment, 'employee_id' => $employee_id);
 		}
 
 		$this->Inventory->update('POS '.$sale_id, ['trans_date' => $sale_time]);
